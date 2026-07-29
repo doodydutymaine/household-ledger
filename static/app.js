@@ -116,7 +116,7 @@
         inp.addEventListener("input", () => {
           const field = inp.dataset.field;
           e[field] = field === "name" ? inp.value : Number(inp.value);
-          renderEarners();
+          $(".earner-takehome", card).textContent = fmtMoney(takeHome(e)) + " / mo";
           renderSummary();
           scheduleSave();
         });
@@ -221,15 +221,17 @@
         <td class="num"><input type="number" step="0.01" class="num-input" value="${c.balance}" data-field="balance" /></td>
         <td class="num"><input type="number" step="0.0001" class="num-input" value="${c.apr}" data-field="apr" /></td>
         <td class="num"><input type="number" step="1" class="num-input" value="${c.payoffMonths}" data-field="payoffMonths" /></td>
-        <td class="num">${fmtMoney(pmt)}</td>
-        <td class="num">${fmtMoney(interest)}</td>
+        <td class="num card-pmt">${fmtMoney(pmt)}</td>
+        <td class="num card-interest">${fmtMoney(interest)}</td>
         <td><button class="row-delete" type="button" aria-label="Remove card">&times;</button></td>
       `;
       $$("input", tr).forEach((inp) => {
         inp.addEventListener("input", () => {
           const field = inp.dataset.field;
           c[field] = field === "name" ? inp.value : Number(inp.value);
-          renderCards();
+          $(".card-pmt", tr).textContent = fmtMoney(cardMonthlyPayment(c));
+          $(".card-interest", tr).textContent = fmtMoney(cardTotalInterest(c));
+          renderCardsFooterTotals();
           renderExpenseTotals();
           renderSummary();
           scheduleSave();
@@ -245,6 +247,10 @@
       body.appendChild(tr);
     });
 
+    renderCardsFooterTotals();
+  }
+
+  function renderCardsFooterTotals() {
     const balTotal = state.creditCards.reduce((s, c) => s + (Number(c.balance) || 0), 0);
     $("#cardsBalanceTotal").textContent = fmtMoney(balTotal);
     $("#cardsPaymentTotal").textContent = fmtMoney(creditCardsTotal());
