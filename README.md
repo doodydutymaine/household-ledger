@@ -13,9 +13,6 @@ persists across container restarts and updates.
 
 ## Option A: docker-compose
 
-
-
-
 ```bash
 git clone https://github.com/doodydutymaine/household-ledger.git
 cd household-ledger
@@ -70,3 +67,9 @@ email allow-list policy.
   `PMT` formula was doing.
 - The vehicle fuel cost formula is `(miles/day × days/week × weeks/month ÷
   MPG) × price/gallon`, matching your original calculation.
+- ```bash
+   cd ~/budget-app
+  git pull
+  podman build -t localhost/household-ledger:latest .
+  systemctl --user restart household-ledger.service
+   ```

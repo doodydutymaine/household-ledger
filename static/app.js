@@ -73,12 +73,56 @@
     return state.creditCards.reduce((sum, c) => sum + cardMonthlyPayment(c), 0);
   }
 
+  function grossMonthlyIncome() {
+    return state.earners.reduce((sum, e) => {
+      const hours = Number(e.hours) || 0;
+      const rate = Number(e.rate) || 0;
+      const otThreshold = Number(e.otThreshold) || 0;
+      const otMult = Number(e.otMultiplier) || 1;
+      const regHours = Math.min(hours, otThreshold);
+      const otHours = Math.max(hours - otThreshold, 0);
+      return sum + (regHours * rate + otHours * rate * otMult);
+    }, 0);
+  }
+
+  function mortgagePI(homePrice, downPayment, ratePercent, termYears) {
+    const loan = Math.max((Number(homePrice) || 0) - (Number(downPayment) || 0), 0);
+    const months = (Number(termYears) || 0) * 12;
+    const i = (Number(ratePercent) || 0) / 100 / 12;
+    if (loan <= 0 || months <= 0) return 0;
+    if (i === 0) return loan / months;
+    return (loan * i) / (1 - Math.pow(1 + i, -months));
+  }
+
+  function mortgageMonthlyTax(homePrice, taxRatePercent) {
+    return ((Number(homePrice) || 0) * (Number(taxRatePercent) || 0)) / 100 / 12;
+  }
+
+  function mortgageMonthlyInsurance(annualInsurance) {
+    return (Number(annualInsurance) || 0) / 12;
+  }
+
+  function mortgageTotalPayment(m) {
+    return (
+      mortgagePI(m.homePrice, m.downPayment, m.interestRate, m.loanTermYears) +
+      mortgageMonthlyTax(m.homePrice, m.taxRatePercent) +
+      mortgageMonthlyInsurance(m.annualInsurance)
+    );
+  }
+
+  function housingLineAmount() {
+    if (state.housing.mode === "mortgage") {
+      return mortgageTotalPayment(state.mortgage);
+    }
+    return Number(state.housing.rentAmount) || 0;
+  }
+
   function expensesLineTotal() {
     return state.expenses.reduce((sum, x) => sum + (Number(x.amount) || 0), 0);
   }
 
   function expensesTotal() {
-    return expensesLineTotal() + carTotalCost() + creditCardsTotal();
+    return expensesLineTotal() + housingLineAmount() + carTotalCost() + creditCardsTotal();
   }
 
   function leftover() {
@@ -90,6 +134,9 @@
   function renderEarners() {
     const list = $("#earnersList");
     list.innerHTML = "";
+    if (state.earners.length === 0) {
+      list.innerHTML = '<p class="empty-state">No earners yet. Click "+ Add earner" below to add one.</p>';
+    }
     state.earners.forEach((e) => {
       const card = document.createElement("div");
       card.className = "earner-card";
@@ -140,6 +187,9 @@
   function renderExpenses() {
     const body = $("#expensesBody");
     body.innerHTML = "";
+    if (state.expenses.length === 0) {
+      body.innerHTML = '<tr class="empty-state-row"><td colspan="3">No line items yet. Click "+ Add line item" below to add one.</td></tr>';
+    }
     state.expenses.forEach((x) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -168,6 +218,7 @@
   }
 
   function renderExpenseTotals() {
+    $("#housingLineTotal").textContent = fmtMoney(housingLineAmount());
     $("#carLineTotal").textContent = fmtMoney(carTotalCost());
     $("#ccLineTotal").textContent = fmtMoney(creditCardsTotal());
     $("#expensesTotalCell").textContent = fmtMoney(expensesTotal());
@@ -212,6 +263,9 @@
   function renderCards() {
     const body = $("#cardsBody");
     body.innerHTML = "";
+    if (state.creditCards.length === 0) {
+      body.innerHTML = '<tr class="empty-state-row"><td colspan="7">No cards yet. Click "+ Add card" below to add one.</td></tr>';
+    }
     state.creditCards.forEach((c) => {
       const pmt = cardMonthlyPayment(c);
       const interest = cardTotalInterest(c);
@@ -259,7 +313,130 @@
     );
   }
 
-  // ---------------- Rendering: Forecast ----------------
+  // ---------------- Rendering: Mortgage ----------------
+
+  function renderMortgage() {
+    $("#housingToggle").checked = state.housing.mode === "mortgage";
+    $("#rentAmount").value = state.housing.rentAmount;
+
+    const m = state.mortgage;
+    $("#mHomePrice").value = m.homePrice;
+    $("#mDownPayment").value = m.downPayment;
+    $("#mRate").value = m.interestRate;
+    $("#mTerm").value = m.loanTermYears;
+    $("#mTaxRate").value = m.taxRatePercent;
+    $("#mInsurance").value = m.annualInsurance;
+
+    renderMortgageBreakdown();
+    renderAffordability();
+    renderScenarios();
+  }
+
+  function renderMortgageBreakdown() {
+    const m = state.mortgage;
+    const pi = mortgagePI(m.homePrice, m.downPayment, m.interestRate, m.loanTermYears);
+    const tax = mortgageMonthlyTax(m.homePrice, m.taxRatePercent);
+    const ins = mortgageMonthlyInsurance(m.annualInsurance);
+    $("#mPI").textContent = fmtMoney(pi);
+    $("#mMonthlyTax").textContent = fmtMoney(tax);
+    $("#mMonthlyIns").textContent = fmtMoney(ins);
+    $("#mTotal").textContent = fmtMoney(pi + tax + ins);
+  }
+
+  function renderAffordability() {
+    const gross = grossMonthlyIncome();
+    const max28 = gross * 0.28;
+    const payment = mortgageTotalPayment(state.mortgage);
+    const pct = gross > 0 ? (payment / gross) * 100 : 0;
+    $("#affGross").textContent = fmtMoney(gross);
+    $("#affMax").textContent = fmtMoney(max28);
+    const pctEl = $("#affPct");
+    pctEl.textContent = pct.toFixed(1) + "% of gross";
+    pctEl.className = "num " + (pct > 28 ? "balance-negative" : "balance-positive");
+  }
+
+  function renderScenarios() {
+    const body = $("#scenariosBody");
+    body.innerHTML = "";
+    if (state.mortgage.scenarios.length === 0) {
+      body.innerHTML = '<tr class="empty-state-row"><td colspan="7">No scenarios yet. Click "+ Add scenario" below to compare an offer.</td></tr>';
+      return;
+    }
+    state.mortgage.scenarios.forEach((s) => {
+      const tr = document.createElement("tr");
+      const total = mortgagePI(s.homePrice, s.downPayment, s.rate, s.termYears) +
+        mortgageMonthlyTax(s.homePrice, state.mortgage.taxRatePercent) +
+        mortgageMonthlyInsurance(state.mortgage.annualInsurance);
+      tr.innerHTML = `
+        <td><input type="text" value="${escapeAttr(s.label)}" data-field="label" /></td>
+        <td class="num"><input type="number" step="1" class="num-input" value="${s.homePrice}" data-field="homePrice" /></td>
+        <td class="num"><input type="number" step="1" class="num-input" value="${s.downPayment}" data-field="downPayment" /></td>
+        <td class="num"><input type="number" step="0.01" class="num-input" value="${s.rate}" data-field="rate" /></td>
+        <td class="num"><input type="number" step="1" class="num-input" value="${s.termYears}" data-field="termYears" /></td>
+        <td class="num scenario-total">${fmtMoney(total)}</td>
+        <td><button class="row-delete" type="button" aria-label="Remove scenario">&times;</button></td>
+      `;
+      $$("input", tr).forEach((inp) => {
+        inp.addEventListener("input", () => {
+          const field = inp.dataset.field;
+          s[field] = field === "label" ? inp.value : Number(inp.value);
+          const newTotal = mortgagePI(s.homePrice, s.downPayment, s.rate, s.termYears) +
+            mortgageMonthlyTax(s.homePrice, state.mortgage.taxRatePercent) +
+            mortgageMonthlyInsurance(state.mortgage.annualInsurance);
+          $(".scenario-total", tr).textContent = fmtMoney(newTotal);
+          scheduleSave();
+        });
+      });
+      $(".row-delete", tr).addEventListener("click", () => {
+        state.mortgage.scenarios = state.mortgage.scenarios.filter((x) => x.id !== s.id);
+        renderScenarios();
+        scheduleSave();
+      });
+      body.appendChild(tr);
+    });
+  }
+
+  function bindMortgageInputs() {
+    $("#housingToggle").addEventListener("change", (ev) => {
+      state.housing.mode = ev.target.checked ? "mortgage" : "rent";
+      renderExpenseTotals();
+      renderSummary();
+      scheduleSave();
+    });
+    $("#rentAmount").addEventListener("input", (ev) => {
+      state.housing.rentAmount = Number(ev.target.value);
+      renderExpenseTotals();
+      renderSummary();
+      scheduleSave();
+    });
+
+    const map = {
+      mHomePrice: "homePrice", mDownPayment: "downPayment", mRate: "interestRate",
+      mTerm: "loanTermYears", mTaxRate: "taxRatePercent", mInsurance: "annualInsurance",
+    };
+    Object.entries(map).forEach(([id, field]) => {
+      $("#" + id).addEventListener("input", (ev) => {
+        state.mortgage[field] = Number(ev.target.value);
+        renderMortgageBreakdown();
+        renderAffordability();
+        renderExpenseTotals();
+        renderSummary();
+        scheduleSave();
+      });
+    });
+
+    $("#addScenario").addEventListener("click", () => {
+      state.mortgage.scenarios.push({
+        id: uid("s"), label: "New scenario", homePrice: state.mortgage.homePrice || 0,
+        downPayment: state.mortgage.downPayment || 0, rate: state.mortgage.interestRate || 6.5,
+        termYears: state.mortgage.loanTermYears || 30,
+      });
+      renderScenarios();
+      scheduleSave();
+    });
+  }
+
+
 
   function renderForecastInputs() {
     $("#fcStart").value = state.forecast.startingSavings;
@@ -505,6 +682,22 @@
     state = await res.json();
     if (!state.forecast) state.forecast = { startingSavings: 0, targetMonth: "", adjustments: [] };
     if (!state.forecast.adjustments) state.forecast.adjustments = [];
+
+    if (!state.housing) {
+      state.housing = { mode: "rent", rentAmount: 0 };
+      const rentIdx = state.expenses.findIndex((x) => /rent|mortgage/i.test(x.name));
+      if (rentIdx !== -1) {
+        state.housing.rentAmount = Number(state.expenses[rentIdx].amount) || 0;
+        state.expenses.splice(rentIdx, 1);
+      }
+    }
+    if (!state.mortgage) {
+      state.mortgage = {
+        homePrice: 0, downPayment: 0, interestRate: 6.5, loanTermYears: 30,
+        taxRatePercent: 1.25, annualInsurance: 1200, scenarios: [],
+      };
+    }
+    if (!state.mortgage.scenarios) state.mortgage.scenarios = [];
   }
 
   // ---------------- Init ----------------
@@ -514,12 +707,14 @@
     bindTabs();
     bindAddButtons();
     bindCarInputs();
+    bindMortgageInputs();
     bindForecastInputs();
 
     renderEarners();
     renderExpenses();
     renderCar();
     renderCards();
+    renderMortgage();
     renderForecastInputs();
     renderAdjustments();
     renderSummary();

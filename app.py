@@ -16,13 +16,25 @@ DEFAULT_STATE = {
          "otMultiplier": 1.5, "taxRate": 0.25},
     ],
     "expenses": [
-        {"id": "x1", "name": "Rent/Mortgage", "amount": 0},
         {"id": "x2", "name": "Power", "amount": 0},
         {"id": "x3", "name": "Water", "amount": 0},
         {"id": "x4", "name": "Internet", "amount": 0},
         {"id": "x5", "name": "Food", "amount": 0},
         {"id": "x6", "name": "Insurance", "amount": 0},
     ],
+    "housing": {
+        "mode": "rent",
+        "rentAmount": 0,
+    },
+    "mortgage": {
+        "homePrice": 0,
+        "downPayment": 0,
+        "interestRate": 6.5,
+        "loanTermYears": 30,
+        "taxRatePercent": 1.25,
+        "annualInsurance": 1200,
+        "scenarios": [],
+    },
     "car": {
         "enabled": True,
         "label": "Car",

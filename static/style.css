@@ -410,6 +410,28 @@ body {
 .balance-negative { color: var(--brick); font-weight: 600; }
 .balance-positive { color: var(--forest); }
 
+.empty-state,
+.empty-state-row td {
+  color: var(--ink-soft);
+  font-style: italic;
+  padding: 1rem 0.6rem;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  color: var(--forest-deep);
+  cursor: pointer;
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--forest);
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 640px) {
