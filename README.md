@@ -13,7 +13,11 @@ persists across container restarts and updates.
 
 ## Option A: docker-compose
 
+
+
+
 ```bash
+git clone https://github.com/doodydutymaine/household-ledger.git
 cd household-ledger
 docker compose up -d --build
 ```
