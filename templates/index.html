@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Household Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="summary-bar">
+  <div class="summary-brand">
+    <span class="summary-brand-mark">§</span>
+    <span class="summary-brand-text">Household Ledger</span>
+  </div>
+  <div class="summary-figures">
+    <div class="summary-item">
+      <span class="summary-label">Income</span>
+      <span class="summary-value" id="sumIncome">$0</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Expenses</span>
+      <span class="summary-value" id="sumExpenses">$0</span>
+    </div>
+    <div class="summary-item summary-item--leftover">
+      <span class="summary-label">Leftover / mo</span>
+      <span class="summary-value" id="sumLeftover">$0</span>
+    </div>
+  </div>
+  <div class="summary-status" id="saveStatus" aria-live="polite">Saved</div>
+</header>
+
+<nav class="ledger-tabs" role="tablist" aria-label="Ledger sections">
+  <button class="ledger-tab is-active" data-tab="income" role="tab" aria-selected="true">01 · Income</button>
+  <button class="ledger-tab" data-tab="expenses" role="tab" aria-selected="false">02 · Expenses</button>
+  <button class="ledger-tab" data-tab="car" role="tab" aria-selected="false">03 · Vehicle</button>
+  <button class="ledger-tab" data-tab="cards" role="tab" aria-selected="false">04 · Credit Cards</button>
+  <button class="ledger-tab" data-tab="forecast" role="tab" aria-selected="false">05 · Forecast</button>
+</nav>
+
+<main class="ledger-book">
+
+  <!-- INCOME -->
+  <section class="ledger-page is-active" id="page-income" role="tabpanel">
+    <h1 class="page-title">Income</h1>
+    <p class="page-note">Each earner's take-home pay accounts for overtime automatically: any hours past the threshold are paid at the overtime multiplier, then taxed.</p>
+
+    <div id="earnersList" class="card-list"></div>
+
+    <button class="btn btn--add" id="addEarner" type="button">+ Add earner</button>
+  </section>
+
+  <!-- EXPENSES -->
+  <section class="ledger-page" id="page-expenses" role="tabpanel">
+    <h1 class="page-title">Expenses</h1>
+    <p class="page-note">Fixed monthly line items. Vehicle and credit card totals are calculated on their own pages and included automatically below.</p>
+
+    <table class="ledger-table" id="expensesTable">
+      <thead>
+        <tr><th>Line item</th><th class="num">Amount / mo</th><th class="col-del"></th></tr>
+      </thead>
+      <tbody id="expensesBody"></tbody>
+      <tfoot>
+        <tr class="ledger-table-computed">
+          <td>Vehicle (from page 03)</td>
+          <td class="num" id="carLineTotal">$0</td>
+          <td></td>
+        </tr>
+        <tr class="ledger-table-computed">
+          <td>Credit cards (from page 04)</td>
+          <td class="num" id="ccLineTotal">$0</td>
+          <td></td>
+        </tr>
+        <tr class="ledger-table-total">
+          <td>Total expenses</td>
+          <td class="num" id="expensesTotalCell">$0</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <button class="btn btn--add" id="addExpense" type="button">+ Add line item</button>
+  </section>
+
+  <!-- CAR -->
+  <section class="ledger-page" id="page-car" role="tabpanel">
+    <h1 class="page-title">Vehicle</h1>
+    <p class="page-note">Monthly payment plus fuel cost, calculated from your daily mileage, fuel economy, and current price per gallon &mdash; so the total updates the moment gas prices change.</p>
+
+    <div class="field-grid">
+      <label class="field">
+        <span class="field-label">Monthly payment</span>
+        <input type="number" step="0.01" id="carPayment" class="field-input">
+      </label>
+      <label class="field">
+        <span class="field-label">Miles per day</span>
+        <input type="number" step="0.1" id="carMiles" class="field-input">
+      </label>
+      <label class="field">
+        <span class="field-label">Days driven / week</span>
+        <input type="number" step="1" id="carDays" class="field-input">
+      </label>
+      <label class="field">
+        <span class="field-label">Weeks / month</span>
+        <input type="number" step="0.1" id="carWeeks" class="field-input">
+      </label>
+      <label class="field">
+        <span class="field-label">Fuel economy (MPG)</span>
+        <input type="number" step="0.1" id="carMpg" class="field-input">
+      </label>
+      <label class="field">
+        <span class="field-label">Price per gallon</span>
+        <input type="number" step="0.01" id="carGasPrice" class="field-input">
+      </label>
+    </div>
+
+    <div class="breakdown">
+      <div class="breakdown-row"><span>Fuel cost / mo</span><span class="num" id="carFuelCost">$0</span></div>
+      <div class="breakdown-row breakdown-row--total"><span>Total vehicle cost / mo</span><span class="num" id="carTotalCost">$0</span></div>
+    </div>
+  </section>
+
+  <!-- CREDIT CARDS -->
+  <section class="ledger-page" id="page-cards" role="tabpanel">
+    <h1 class="page-title">Credit Cards</h1>
+    <p class="page-note">Set a balance, APR, and payoff target (in months) for each card. The monthly payment needed to hit that payoff date &mdash; and the interest it costs you &mdash; is calculated for you.</p>
+
+    <table class="ledger-table" id="cardsTable">
+      <thead>
+        <tr>
+          <th>Card</th>
+          <th class="num">Balance</th>
+          <th class="num">APR</th>
+          <th class="num">Payoff (mo)</th>
+          <th class="num">Monthly pmt</th>
+          <th class="num">Total interest</th>
+          <th class="col-del"></th>
+        </tr>
+      </thead>
+      <tbody id="cardsBody"></tbody>
+      <tfoot>
+        <tr class="ledger-table-total">
+          <td>Total</td>
+          <td class="num" id="cardsBalanceTotal">$0</td>
+          <td></td>
+          <td></td>
+          <td class="num" id="cardsPaymentTotal">$0</td>
+          <td class="num" id="cardsInterestTotal">$0</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <button class="btn btn--add" id="addCard" type="button">+ Add card</button>
+  </section>
+
+  <!-- FORECAST -->
+  <section class="ledger-page" id="page-forecast" role="tabpanel">
+    <h1 class="page-title">Forecast</h1>
+    <p class="page-note">Project your savings forward using this month's leftover as a steady monthly rate, plus any one-time income or expenses you know are coming.</p>
+
+    <div class="field-grid field-grid--forecast">
+      <label class="field">
+        <span class="field-label">Current savings balance</span>
+        <input type="number" step="0.01" id="fcStart" class="field-input">
+      </label>
+      <label class="field">
+        <span class="field-label">Project through</span>
+        <input type="month" id="fcTarget" class="field-input">
+      </label>
+    </div>
+
+    <h2 class="subsection-title">One-time adjustments</h2>
+    <table class="ledger-table" id="adjustmentsTable">
+      <thead>
+        <tr><th>Month</th><th>Description</th><th class="num">Amount</th><th class="col-del"></th></tr>
+      </thead>
+      <tbody id="adjustmentsBody"></tbody>
+    </table>
+    <button class="btn btn--add" id="addAdjustment" type="button">+ Add one-time item</button>
+    <p class="field-hint">Use a negative amount for a one-time expense (e.g. &minus;1200), positive for a one-time windfall.</p>
+
+    <h2 class="subsection-title">Projection</h2>
+    <table class="ledger-table" id="forecastTable">
+      <thead>
+        <tr><th>Month</th><th class="num">Leftover</th><th class="num">One-time</th><th class="num">Balance</th></tr>
+      </thead>
+      <tbody id="forecastBody"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

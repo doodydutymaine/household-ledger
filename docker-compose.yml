@@ -1,0 +1,9 @@
+services:
+  household-ledger:
+    build: .
+    container_name: household-ledger
+    restart: always
+    ports:
+      - "127.0.0.1:5008:5008"
+    volumes:
+      - ./data:/data

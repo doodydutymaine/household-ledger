@@ -1,0 +1,15 @@
+[Unit]
+Description=Household Ledger
+After=network-online.target
+
+[Container]
+Image=localhost/household-ledger:latest
+ContainerName=household-ledger
+PublishPort=127.0.0.1:5008:5008
+Volume=%h/household-ledger-data:/data:Z
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
