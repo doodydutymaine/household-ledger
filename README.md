@@ -47,27 +47,6 @@ Visit `http://127.0.0.1:5008`.
    curl -I http://127.0.0.1:5008
    ```
 
-Changes / Updates
-1. Pull the changes
-
-On your server, in that same household-ledger folder:
-
-bash
-cd ~/household-ledger
-git pull
-
-If you edited directly on GitHub's web interface, this pulls those changes down to your local copy.
-
-2. Rebuild the image
-bash
-podman build -t localhost/household-ledger:latest .
-3. Restart the container so it picks up the new image
-bash
-systemctl --user restart household-ledger.service
-4. Confirm
-bash
-curl -I http://127.0.0.1:5008
-
 ## Adding it to your Cloudflare Tunnel
 
 Same pattern as your other two apps: in the tunnel's **Public Hostname**
