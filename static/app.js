@@ -257,7 +257,26 @@
 
   function renderForecastInputs() {
     $("#fcStart").value = state.forecast.startingSavings;
-    $("#fcTarget").value = state.forecast.targetMonth;
+    const target = state.forecast.targetMonth;
+    if (target && /^\d{4}-\d{2}$/.test(target)) {
+      const [y, m] = target.split("-");
+      $("#fcTargetYear").value = y;
+      $("#fcTargetMonth").value = m;
+    } else {
+      const now = new Date();
+      $("#fcTargetYear").value = now.getFullYear();
+      $("#fcTargetMonth").value = String(now.getMonth() + 1).padStart(2, "0");
+    }
+  }
+
+  function updateTargetMonthFromInputs() {
+    const y = $("#fcTargetYear").value;
+    const m = $("#fcTargetMonth").value;
+    if (/^\d{4}$/.test(y) && /^\d{2}$/.test(m)) {
+      state.forecast.targetMonth = `${y}-${m}`;
+    } else {
+      state.forecast.targetMonth = "";
+    }
   }
 
   function bindForecastInputs() {
@@ -266,8 +285,13 @@
       renderForecastTable();
       scheduleSave();
     });
-    $("#fcTarget").addEventListener("input", (ev) => {
-      state.forecast.targetMonth = ev.target.value;
+    $("#fcTargetMonth").addEventListener("change", () => {
+      updateTargetMonthFromInputs();
+      renderForecastTable();
+      scheduleSave();
+    });
+    $("#fcTargetYear").addEventListener("input", () => {
+      updateTargetMonthFromInputs();
       renderForecastTable();
       scheduleSave();
     });
@@ -276,21 +300,47 @@
   function renderAdjustments() {
     const body = $("#adjustmentsBody");
     body.innerHTML = "";
+    const monthNames = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+    const monthLabels = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
     state.forecast.adjustments.forEach((a) => {
+      const [curYear, curMonth] = (a.month && /^\d{4}-\d{2}$/.test(a.month)) ? a.month.split("-") : ["", ""];
       const tr = document.createElement("tr");
+      const monthOptions = monthNames.map((mn, i) =>
+        `<option value="${mn}" ${mn === curMonth ? "selected" : ""}>${monthLabels[i]}</option>`
+      ).join("");
       tr.innerHTML = `
-        <td><input type="month" value="${escapeAttr(a.month || "")}" data-field="month" /></td>
+        <td><select data-field="month">${monthOptions}</select></td>
+        <td><input type="number" step="1" class="num-input" style="width:5rem" value="${curYear}" data-field="year" placeholder="2026" /></td>
         <td><input type="text" value="${escapeAttr(a.label || "")}" data-field="label" /></td>
         <td class="num"><input type="number" step="0.01" class="num-input" value="${a.amount}" data-field="amount" /></td>
         <td><button class="row-delete" type="button" aria-label="Remove adjustment">&times;</button></td>
       `;
-      $$("input", tr).forEach((inp) => {
-        inp.addEventListener("input", () => {
-          const field = inp.dataset.field;
-          a[field] = field === "amount" ? Number(inp.value) : inp.value;
-          renderForecastTable();
-          scheduleSave();
-        });
+
+      const updateMonthField = () => {
+        const y = $("[data-field='year']", tr).value;
+        const m = $("[data-field='month']", tr).value;
+        a.month = /^\d{4}$/.test(y) ? `${y}-${m}` : "";
+      };
+
+      $("[data-field='month']", tr).addEventListener("change", () => {
+        updateMonthField();
+        renderForecastTable();
+        scheduleSave();
+      });
+      $("[data-field='year']", tr).addEventListener("input", () => {
+        updateMonthField();
+        renderForecastTable();
+        scheduleSave();
+      });
+      $("[data-field='label']", tr).addEventListener("input", (ev) => {
+        a.label = ev.target.value;
+        scheduleSave();
+      });
+      $("[data-field='amount']", tr).addEventListener("input", (ev) => {
+        a.amount = Number(ev.target.value);
+        renderForecastTable();
+        scheduleSave();
       });
       $(".row-delete", tr).addEventListener("click", () => {
         state.forecast.adjustments = state.forecast.adjustments.filter((x) => x.id !== a.id);
